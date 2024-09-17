@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_TAG = "mdrajibkhan/mysampleimage:${BUILD_NUMBER}"
+        IMAGE_TAG = "p978/mysampleimage:${BUILD_NUMBER}"
     }
 
     stages {
         stage('Pulling the source code') {
             steps {
-                git branch: 'main', url: 'https://github.com/page-cloud/jenkinsfile-custom-test.git'
+                git branch: 'main', url: 'https://github.com/Alamgir2121/jenkinsfile-custom-test.git'
             }
         }
         
@@ -27,7 +27,7 @@ pipeline {
         stage('Update Kubernetes Manifest') {
             steps {
                 sh """
-                    sed -i "s#mdrajibkhan/mysampleimage:.*#mdrajibkhan/mysampleimage:${BUILD_NUMBER}#" nginx-deploy.yaml
+                    sed -i "s#p978/mysampleimage:.*#p978/mysampleimage:${BUILD_NUMBER}#" nginx-deploy.yaml
                     cat nginx-deploy.yaml
                 """
             }
