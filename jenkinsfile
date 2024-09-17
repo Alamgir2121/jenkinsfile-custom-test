@@ -1,45 +1,51 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKER_IMAGE = 'p978/mysampleimage:5'
+        IMAGE_TAG = "p978/mysampleimage:${BUILD_NUMBER}"
     }
 
     stages {
-        stage('Build Docker Image') {
+        stage('Pulling the source code') {
             steps {
-                script {
-                    // Build the Docker image
-                    sh 'docker build -t ${DOCKER_IMAGE} .'
+                git branch: 'main', url: 'https://github.com/Alamgir2121/jenkinsfile-custom-test.git'
+            }
+        }
+        
+        stage('Build and Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
+                    sh """
+                        docker build -t ${IMAGE_TAG} .
+                        docker login -u $DOCKER_HUB_USER -p$DOCKER_HUB_PASSWORD
+                        docker push ${IMAGE_TAG}
+                    """
                 }
             }
         }
         
-        stage('Login to Docker Hub') {
+        stage('Update Kubernetes Manifest') {
             steps {
-                script {
-                    // Login to Docker Hub using credentials
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials-id', usernameVariable: 'DOCKER_HUB_USERNAME', passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
-                        sh 'echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
-                    }
-                }
+                sh """
+                    sed -i "s#p978/mysampleimage:.*#p978/mysampleimage:${BUILD_NUMBER}#" nginx-deploy.yaml
+                    cat nginx-deploy.yaml
+                """
             }
         }
-        
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    // Push the Docker image to Docker Hub
-                    sh 'docker push ${DOCKER_IMAGE}'
-                }
-            }
-        }
-    }
 
-    post {
-        always {
-            // Clean up Docker images to free space
-            sh 'docker rmi ${DOCKER_IMAGE} || true'
+        stage('Commit and Push Updated Manifest') {
+            steps {
+                withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                    sh """
+                        git config --global user.email "jenkins@example.com"
+                        git config --global user.name "Jenkins"
+                        git add .
+                        git commit -m "Update Kubernetes manifest with new image tag ${IMAGE_TAG}"
+                        git push https://github-username:${GITHUB_TOKEN}@github.com/page-cloud/jenkinsfile-custom-test.git main
+                    """
+                }
+            }
         }
     }
 }
+
